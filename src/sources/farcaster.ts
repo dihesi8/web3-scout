@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Lead } from "../types";
 import { config } from "../config";
+import { isWithinLastHours } from "../time";
 
 // Raw Farcaster hubs have no keyword search — you'd have to stream and
 // filter every cast on the network yourself, which isn't practical for
@@ -17,6 +18,7 @@ const HIRING_KEYWORDS = [
 interface NeynarCast {
   hash: string;
   text: string;
+  timestamp: string; // ISO 8601
   author: {
     username: string;
     display_name: string;
@@ -42,6 +44,9 @@ export async function fetchFarcasterLeads(): Promise<Lead[]> {
 
       const casts: NeynarCast[] = data?.result?.casts || [];
       for (const cast of casts) {
+        const castTime = new Date(cast.timestamp).getTime();
+        if (!isWithinLastHours(castTime, 24)) continue;
+
         const links = (cast.embeds || []).map((e) => e.url).filter(Boolean) as string[];
         leads.push({
           id: `fc-${cast.hash}`,

@@ -1,6 +1,7 @@
 import axios from "axios";
 import { Lead } from "../types";
 import { config } from "../config";
+import { isWithinLastHours } from "../time";
 
 interface TokenProfile {
   url: string;
@@ -15,6 +16,7 @@ interface PairData {
   baseToken: { name: string; symbol: string; address: string };
   liquidity?: { usd: number };
   volume?: { h24: number };
+  pairCreatedAt?: number; // ms since epoch
   url: string;
   info?: {
     websites?: { url: string }[];
@@ -63,6 +65,7 @@ export async function fetchDexScreenerLeads(): Promise<Lead[]> {
 
     if (!pair) continue;
     if ((pair.liquidity?.usd || 0) < config.filters.minLiquidityUsd) continue;
+    if (!isWithinLastHours(pair.pairCreatedAt || 0, 24)) continue;
 
     const website = profile.links?.find((l) => l.type === "website" || l.label === "Website")?.url
       || pair.info?.websites?.[0]?.url;
