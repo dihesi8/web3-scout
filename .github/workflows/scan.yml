@@ -1,0 +1,48 @@
+name: Web3 Scout Scan
+
+on:
+  schedule:
+    # Runs twice a day: 9 AM and 6 PM UTC. Adjust the hours below to match
+    # your timezone/preference — GitHub Actions cron always runs in UTC.
+    - cron: "0 9,18 * * *"
+  workflow_dispatch: {} # lets you trigger a run manually from the Actions tab
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Restore seen-leads cache
+        uses: actions/cache@v4
+        with:
+          path: data/seen.json
+          key: seen-leads-${{ github.run_id }}
+          restore-keys: seen-leads-
+
+      - name: Run scan
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+          NVIDIA_MODEL: ${{ secrets.NVIDIA_MODEL }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          NEYNAR_API_KEY: ${{ secrets.NEYNAR_API_KEY }}
+        run: npm start
+
+      - name: Commit updated seen-leads file
+        run: |
+          git config user.name "web3-scout-bot"
+          git config user.email "actions@github.com"
+          git add data/seen.json
+          git diff --staged --quiet || git commit -m "chore: update seen leads"
+          git push
